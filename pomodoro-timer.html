@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sounding — focus timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter+Tight:wght@400;500;600&family=Martian+Mono:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --abyss:#03121A;
+    --water:#10586B;
+    --water-lit:#22A0B6;
+    --lume:#FFB03B;
+    --lume-soft:#FFC97A;
+    --bone:#E6F1F0;
+    --muted:rgba(230,241,240,.55);
+    --glass:rgba(255,255,255,.06);
+    --glass-lift:rgba(255,255,255,.11);
+    --edge:rgba(255,255,255,.16);
+    --edge-bright:rgba(255,255,255,.32);
+    --blur:blur(26px) saturate(150%);
+    --display:"Bricolage Grotesque","Inter Tight",system-ui,sans-serif;
+    --mono:"Martian Mono",ui-monospace,SFMono-Regular,monospace;
+    --body:"Inter Tight",system-ui,-apple-system,sans-serif;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    min-height:100svh;
+    padding:34px 20px 48px;
+    font-family:var(--body);
+    color:var(--bone);
+    background:var(--abyss);
+    overflow-x:hidden;
+  }
+
+  /* ---------- ambient light behind the glass ---------- */
+  .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden}
+  .aurora i{
+    position:absolute;
+    display:block;
+    border-radius:50%;
+    filter:blur(90px);
+    opacity:.5;
+  }
+  .b1{width:56vw;height:56vw;background:#1C8FA3;top:-16vw;left:-10vw;animation:float1 26s ease-in-out infinite}
+  .b2{width:44vw;height:44vw;background:#3E5FB5;bottom:-14vw;right:-8vw;animation:float2 32s ease-in-out infinite}
+  .b3{width:30vw;height:30vw;background:#B4632A;top:38%;left:52%;opacity:.32;animation:float1 38s ease-in-out infinite reverse}
+  @keyframes float1{50%{transform:translate3d(6vw,7vh,0) scale(1.12)}}
+  @keyframes float2{50%{transform:translate3d(-7vw,-5vh,0) scale(1.08)}}
+
+  /* ---------- shell ---------- */
+  .rig{
+    width:min(940px,100%);
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,.82fr);
+    gap:18px;
+    align-items:start;
+  }
+  .brand{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:0 4px 4px}
+  .brand h1{font-family:var(--display);font-weight:800;font-size:1.3rem;letter-spacing:.17em;text-transform:uppercase}
+  .brand p{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+  .panel{
+    background:var(--glass);
+    border:1px solid var(--edge);
+    border-radius:24px;
+    padding:22px;
+    -webkit-backdrop-filter:var(--blur);
+    backdrop-filter:var(--blur);
+    box-shadow:0 30px 70px -40px #000, inset 0 1px 0 rgba(255,255,255,.14);
+  }
+  .stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+  h2{
+    font-size:.64rem;
+    font-weight:600;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+
+  /* ---------- gauge ---------- */
+  .gauge{display:flex;gap:14px}
+  .rail{position:relative;width:40px;flex:none;font-family:var(--mono);font-size:.5rem;font-weight:300;color:rgba(230,241,240,.4)}
+  .rail span{position:absolute;right:0;transform:translateY(-50%);display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .rail span::after{content:"";width:7px;height:1px;background:rgba(230,241,240,.32)}
+  .rail span.major::after{width:13px;background:rgba(230,241,240,.58)}
+
+  .vessel{
+    position:relative;
+    flex:1;
+    min-width:0;
+    height:clamp(320px,48svh,400px);
+    border:1px solid var(--edge-bright);
+    border-radius:22px;
+    background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.02));
+    overflow:hidden;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.22);
+  }
+  .water{
+    position:absolute;left:0;right:0;bottom:0;height:100%;
+    background:linear-gradient(180deg,var(--water-lit),var(--water) 50%,#0A3746);
+    transition:height .35s linear;
+  }
+  .wave{position:absolute;top:-11px;left:0;width:200%;height:22px;fill:var(--water-lit);animation:drift 7s linear infinite}
+  @keyframes drift{to{transform:translateX(-50%)}}
+  .sheen{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.18) 0%,transparent 38%)}
+
+  .readout{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;text-align:center;padding:18px}
+  .phase{font-weight:600;font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--lume)}
+  .clock{font-family:var(--mono);font-weight:500;font-size:clamp(2rem,9vw,3.2rem);letter-spacing:-.05em;color:var(--lume);font-variant-numeric:tabular-nums}
+  .task-echo{font-size:.74rem;color:rgba(255,201,122,.75);max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .depth{font-family:var(--mono);font-weight:300;font-size:.6rem;color:rgba(255,176,59,.6)}
+
+  .submerged{clip-path:inset(100% 0 0 0);transition:clip-path .35s linear}
+  .submerged .phase,.submerged .clock{color:#031820}
+  .submerged .task-echo{color:rgba(3,24,32,.8)}
+  .submerged .depth{color:rgba(3,24,32,.6)}
+
+  /* ---------- cycle + controls ---------- */
+  .cycle{display:flex;align-items:center;gap:9px;margin:20px 0 16px;padding-left:54px}
+  .pip{width:11px;height:11px;border-radius:50%;border:1px solid rgba(255,176,59,.5);transition:background .3s ease}
+  .pip.done{background:var(--lume);border-color:var(--lume);box-shadow:0 0 12px rgba(255,176,59,.5)}
+  .cycle small{margin-left:6px;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    font-family:var(--body);font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:13px;padding:14px 16px;cursor:pointer;
+    border:1px solid var(--edge);background:var(--glass-lift);color:var(--bone);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    transition:background .2s ease,border-color .2s ease,transform .12s ease;
+  }
+  button:hover{background:rgba(255,255,255,.18);border-color:var(--edge-bright)}
+  button:active{transform:translateY(1px)}
+  .primary{flex:1;min-width:150px;background:var(--lume);border-color:var(--lume);color:#03121A}
+  .primary:hover{background:var(--lume-soft);border-color:var(--lume-soft)}
+  :focus-visible{outline:2px solid var(--lume);outline-offset:3px}
+
+  /* ---------- task + presets ---------- */
+  .task-input{
+    width:100%;font-family:var(--body);font-size:.9rem;color:var(--bone);
+    padding:13px 15px;border-radius:13px;
+    background:rgba(255,255,255,.07);border:1px solid var(--edge);
+  }
+  .task-input::placeholder{color:rgba(230,241,240,.38)}
+
+  .presets{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .chip{
+    font-size:.68rem;letter-spacing:.05em;text-transform:none;
+    padding:9px 12px;border-radius:999px;
+  }
+  .chip.active{background:rgba(255,176,59,.2);border-color:var(--lume);color:var(--lume-soft)}
+
+  /* ---------- stats ---------- */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .tile{
+    background:rgba(255,255,255,.05);border:1px solid var(--edge);
+    border-radius:16px;padding:14px 12px;text-align:center;
+  }
+  .tile b{display:block;font-family:var(--mono);font-weight:500;font-size:1.15rem;color:var(--lume);letter-spacing:-.04em}
+  .tile span{display:block;margin-top:5px;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+  /* ---------- log ---------- */
+  .log{list-style:none;display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto}
+  .log li{
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+    padding:11px 13px;border-radius:13px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
+    font-size:.8rem;
+  }
+  .log li em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .log li time{font-family:var(--mono);font-size:.6rem;font-weight:300;color:var(--muted);flex:none}
+  .empty{font-size:.8rem;color:var(--muted);line-height:1.5}
+
+  /* ---------- settings ---------- */
+  .field{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:13px;font-size:.8rem;color:rgba(230,241,240,.85)}
+  .field:first-of-type{margin-top:0}
+  .field input[type=number]{
+    width:70px;font-family:var(--mono);font-size:.74rem;text-align:center;padding:8px;
+    color:var(--bone);background:rgba(255,255,255,.07);border:1px solid var(--edge);border-radius:9px;
+  }
+  .field input[type=checkbox]{width:17px;height:17px;accent-color:var(--lume);cursor:pointer;flex:none}
+
+  .keys{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);font-size:.68rem;color:var(--muted);line-height:1.9}
+  .keys kbd{
+    font-family:var(--mono);font-size:.6rem;padding:2px 6px;border-radius:5px;
+    background:rgba(255,255,255,.09);border:1px solid var(--edge);color:var(--bone);
+  }
+
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* ---------- zen mode ---------- */
+  body.zen .aside,body.zen .brand p,body.zen .rail{display:none}
+  body.zen .rig{grid-template-columns:minmax(0,1fr);max-width:560px}
+
+  @media (max-width:820px){
+    .rig{grid-template-columns:minmax(0,1fr)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .wave,.aurora i{animation:none}
+    .water,.submerged{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="aurora" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
+
+<main class="rig">
+  <header class="brand">
+    <h1>Sounding</h1>
+    <p>Focus, measured in depth</p>
+  </header>
+
+  <!-- timer -->
+  <section class="panel">
+    <div class="gauge">
+      <div class="rail" id="rail"></div>
+      <div class="vessel">
+        <div class="water" id="water">
+          <svg class="wave" viewBox="0 0 240 22" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 12 Q15 2 30 12 T60 12 T90 12 T120 12 T150 12 T180 12 T210 12 T240 12 V22 H0 Z"/>
+          </svg>
+        </div>
+        <div class="readout">
+          <span class="phase" id="phase">Descent</span>
+          <span class="clock" id="clock">25:00</span>
+          <span class="task-echo" id="echo"></span>
+          <span class="depth" id="depth">0.0 m</span>
+        </div>
+        <div class="readout submerged" id="submerged" aria-hidden="true">
+          <span class="phase" id="phaseSub">Descent</span>
+          <span class="clock" id="clockSub">25:00</span>
+          <span class="task-echo" id="echoSub"></span>
+          <span class="depth" id="depthSub">0.0 m</span>
+        </div>
+        <div class="sheen" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+      <small id="cycleLabel">Session 1 of 4</small>
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="toggle">Begin descent</button>
+      <button id="reset">Reset</button>
+      <button id="skip">Skip</button>
+      <button id="zen" title="Hide everything but the timer">Zen</button>
+    </div>
+  </section>
+
+  <!-- side -->
+  <div class="stack aside">
+    <section class="panel">
+      <h2>Working on</h2>
+      <input class="task-input" id="task" type="text" maxlength="60" placeholder="Name this descent…">
+      <div class="presets" id="presets">
+        <button class="chip active" data-f="25" data-s="5" data-l="15">Classic 25 / 5</button>
+        <button class="chip" data-f="50" data-s="10" data-l="25">Deep 50 / 10</button>
+        <button class="chip" data-f="15" data-s="3" data-l="12">Sprint 15 / 3</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Today</h2>
+      <div class="stats">
+        <div class="tile"><b id="sDone">0</b><span>Sessions</span></div>
+        <div class="tile"><b id="sMins">0</b><span>Minutes</span></div>
+        <div class="tile"><b id="sCycles">0</b><span>Cycles</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Log</h2>
+      <p class="empty" id="logEmpty">Nothing logged yet. Finish a descent and it lands here.</p>
+      <ul class="log" id="log"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Dive plan</h2>
+      <label class="field">Descent (min)<input type="number" id="focusLen" min="1" max="180" value="25"></label>
+      <label class="field">Surface interval (min)<input type="number" id="shortLen" min="1" max="60" value="5"></label>
+      <label class="field">Long surface, every 4th<input type="number" id="longLen" min="1" max="120" value="15"></label>
+      <label class="field">Roll into the next phase<input type="checkbox" id="autoNext"></label>
+      <label class="field">Chime at each transition<input type="checkbox" id="sound" checked></label>
+      <label class="field">Desktop notifications<input type="checkbox" id="notify"></label>
+      <p class="keys">
+        <kbd>Space</kbd> start or pause &nbsp; <kbd>R</kbd> reset<br>
+        <kbd>S</kbd> skip phase &nbsp; <kbd>Z</kbd> zen mode
+      </p>
+    </section>
+  </div>
+
+  <p class="sr" id="live" role="status" aria-live="polite"></p>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var MAX_DEPTH = 30;
+
+  var state = {
+    mode:"focus",
+    lengths:{focus:25, short:5, "long":15},
+    remaining:25*60*1000,
+    endAt:null,
+    running:false,
+    finished:0,
+    task:"",
+    autoNext:false,
+    sound:true,
+    notify:false,
+    log:[],
+    minutes:0
+  };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var el = {
+    water:$("water"), submerged:$("submerged"),
+    clock:$("clock"), clockSub:$("clockSub"),
+    phase:$("phase"), phaseSub:$("phaseSub"),
+    echo:$("echo"), echoSub:$("echoSub"),
+    depth:$("depth"), depthSub:$("depthSub"),
+    toggle:$("toggle"), reset:$("reset"), skip:$("skip"), zen:$("zen"),
+    cycleLabel:$("cycleLabel"), pips:document.querySelectorAll(".pip"),
+    rail:$("rail"), live:$("live"), task:$("task"),
+    log:$("log"), logEmpty:$("logEmpty"),
+    sDone:$("sDone"), sMins:$("sMins"), sCycles:$("sCycles")
+  };
+
+  var LABEL = {focus:"Descent", short:"Surface interval", "long":"Long surface"};
+
+  for (var i=0; i<=6; i++){
+    var mark = document.createElement("span");
+    mark.style.top = (i/6*100) + "%";
+    if (i % 2 === 0){ mark.className = "major"; mark.textContent = Math.round(i/6*MAX_DEPTH); }
+    el.rail.appendChild(mark);
+  }
+
+  function total(){ return state.lengths[state.mode]*60*1000; }
+
+  function clockText(ms){
+    var s = Math.max(0, Math.ceil(ms/1000));
+    return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
+  }
+
+  // A descent drains the vessel; a surface interval fills it back up.
+  function level(){
+    var elapsed = 1 - state.remaining/total();
+    return state.mode === "focus" ? (1-elapsed) : elapsed;
+  }
+
+  function render(){
+    var time = clockText(state.remaining);
+    var fill = Math.max(0, Math.min(1, level()));
+    var depth = (1-fill)*MAX_DEPTH;
+    var echo = state.mode === "focus" ? state.task : "";
+
+    el.clock.textContent = el.clockSub.textContent = time;
+    el.phase.textContent = el.phaseSub.textContent = LABEL[state.mode];
+    el.echo.textContent = el.echoSub.textContent = echo;
+    el.depth.textContent = el.depthSub.textContent = depth.toFixed(1) + " m";
+
+    el.water.style.height = (fill*100) + "%";
+    el.submerged.style.clipPath = "inset(" + ((1-fill)*100) + "% 0 0 0)";
+
+    el.toggle.textContent = state.running ? "Pause"
+      : (state.remaining === total() ? (state.mode === "focus" ? "Begin descent" : "Begin ascent") : "Resume");
+
+    var done = state.finished % 4;
+    if (done === 0 && state.finished > 0 && state.mode === "long") done = 4;
+    for (var i=0; i<el.pips.length; i++) el.pips[i].classList.toggle("done", i < done);
+    el.cycleLabel.textContent = state.mode === "focus"
+      ? "Session " + (done+1) + " of 4"
+      : LABEL[state.mode] + " · " + done + " of 4 done";
+
+    el.sDone.textContent = state.log.length;
+    el.sMins.textContent = state.minutes;
+    el.sCycles.textContent = Math.floor(state.finished/4);
+
+    document.title = time + " · " + LABEL[state.mode] + " — Sounding";
+  }
+
+  function renderLog(){
+    el.log.innerHTML = "";
+    el.logEmpty.style.display = state.log.length ? "none" : "block";
+    for (var i = state.log.length-1; i >= 0; i--){
+      var entry = state.log[i];
+      var li = document.createElement("li");
+      var name = document.createElement("em");
+      name.textContent = entry.label;
+      var t = document.createElement("time");
+      t.textContent = entry.minutes + "m · " + entry.at;
+      li.appendChild(name); li.appendChild(t);
+      el.log.appendChild(li);
+    }
+  }
+
+  /* ---------- chime ---------- */
+  var audio = null;
+  function chime(rising){
+    if (!state.sound) return;
+    try{
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!audio) audio = new Ctx();
+      if (audio.state === "suspended") audio.resume();
+      var notes = rising ? [392, 523.25, 659.25] : [659.25, 523.25, 392];
+      notes.forEach(function(freq, i){
+        var t = audio.currentTime + i*0.16;
+        var osc = audio.createOscillator(), gain = audio.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.15, t+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t+0.9);
+        osc.connect(gain).connect(audio.destination);
+        osc.start(t); osc.stop(t+1);
+      });
+    }catch(e){ /* audio unavailable; the timer still runs */ }
+  }
+
+  function push(title, body){
+    if (!state.notify) return;
+    try{
+      if (window.Notification && Notification.permission === "granted") new Notification(title, {body:body});
+    }catch(e){ /* notifications blocked in this context */ }
+  }
+
+  /* ---------- timer ---------- */
+  var ticker = null;
+
+  function start(){
+    state.endAt = Date.now() + state.remaining;
+    state.running = true;
+    clearInterval(ticker);
+    ticker = setInterval(tick, 120);
+    render();
+  }
+  function pause(){
+    if (state.running) state.remaining = Math.max(0, state.endAt - Date.now());
+    state.running = false;
+    clearInterval(ticker);
+    render();
+  }
+  function tick(){
+    state.remaining = Math.max(0, state.endAt - Date.now());
+    if (state.remaining <= 0) complete(); else render();
+  }
+
+  function advance(){
+    var wasFocus = state.mode === "focus";
+    if (wasFocus){
+      state.finished++;
+      state.mode = (state.finished % 4 === 0) ? "long" : "short";
+    } else {
+      state.mode = "focus";
+    }
+    state.remaining = total();
+    el.live.textContent = LABEL[state.mode] + " begins, " + state.lengths[state.mode] + " minutes.";
+    return wasFocus;
+  }
+
+  function complete(){
+    clearInterval(ticker);
+    state.running = false;
+    var mins = state.lengths[state.mode];
+    var wasFocus = state.mode === "focus";
+
+    if (wasFocus){
+      state.minutes += mins;
+      state.log.push({
+        label: state.task || "Unnamed descent",
+        minutes: mins,
+        at: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+      });
+      renderLog();
+    }
+
+    advance();
+    chime(!wasFocus);
+    push(wasFocus ? "Descent complete" : "Back to work",
+         wasFocus ? "Surface for " + state.lengths[state.mode] + " minutes."
+                  : "Next descent: " + (state.task || "unnamed") + ", " + state.lengths[state.mode] + " minutes.");
+
+    if (state.autoNext) start(); else render();
+  }
+
+  /* ---------- controls ---------- */
+  el.toggle.addEventListener("click", function(){ state.running ? pause() : start(); });
+
+  el.reset.addEventListener("click", function(){
+    pause();
+    state.remaining = total();
+    el.live.textContent = LABEL[state.mode] + " reset to " + state.lengths[state.mode] + " minutes.";
+    render();
+  });
+
+  el.skip.addEventListener("click", function(){ pause(); advance(); render(); });
+
+  el.zen.addEventListener("click", function(){
+    document.body.classList.toggle("zen");
+    el.zen.textContent = document.body.classList.contains("zen") ? "Exit zen" : "Zen";
+  });
+
+  el.task.addEventListener("input", function(){ state.task = this.value.trim(); render(); });
+
+  document.getElementById("presets").addEventListener("click", function(e){
+    var chip = e.target.closest(".chip");
+    if (!chip) return;
+    state.lengths.focus = +chip.dataset.f;
+    state.lengths.short = +chip.dataset.s;
+    state.lengths["long"] = +chip.dataset.l;
+    $("focusLen").value = state.lengths.focus;
+    $("shortLen").value = state.lengths.short;
+    $("longLen").value = state.lengths["long"];
+    this.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
+    chip.classList.add("active");
+    if (!state.running) state.remaining = total();
+    render();
+  });
+
+  document.addEventListener("keydown", function(e){
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    if (e.code === "Space"){ e.preventDefault(); el.toggle.click(); }
+    else if (e.key === "r" || e.key === "R") el.reset.click();
+    else if (e.key === "s" || e.key === "S") el.skip.click();
+    else if (e.key === "z" || e.key === "Z") el.zen.click();
+  });
+
+  /* ---------- dive plan ---------- */
+  function bindLength(id, key){
+    $(id).addEventListener("change", function(){
+      var v = parseInt(this.value, 10);
+      if (isNaN(v) || v < 1){ this.value = state.lengths[key]; return; }
+      state.lengths[key] = v;
+      document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
+      if (!state.running && state.mode === key) state.remaining = total();
+      render();
+    });
+  }
+  bindLength("focusLen","focus");
+  bindLength("shortLen","short");
+  bindLength("longLen","long");
+
+  $("autoNext").addEventListener("change", function(){ state.autoNext = this.checked; });
+  $("sound").addEventListener("change", function(){ state.sound = this.checked; });
+  $("notify").addEventListener("change", function(){
+    var box = this;
+    if (!box.checked){ state.notify = false; return; }
+    if (!window.Notification){ box.checked = false; el.live.textContent = "This browser does not support notifications."; return; }
+    Notification.requestPermission().then(function(p){
+      state.notify = (p === "granted");
+      box.checked = state.notify;
+      if (!state.notify) el.live.textContent = "Notifications are blocked for this page.";
+    }).catch(function(){ box.checked = false; });
+  });
+
+  render();
+  renderLog();
+})();
+</script>
+</body>
+</html>
