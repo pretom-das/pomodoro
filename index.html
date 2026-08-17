@@ -16,11 +16,10 @@
     --lume-soft:#FFC97A;
     --bone:#E6F1F0;
     --muted:rgba(230,241,240,.55);
-    --glass:rgba(255,255,255,.06);
-    --glass-lift:rgba(255,255,255,.11);
-    --edge:rgba(255,255,255,.16);
-    --edge-bright:rgba(255,255,255,.32);
-    --blur:blur(26px) saturate(150%);
+    --glass:#0B2530;
+    --glass-lift:#123240;
+    --edge:rgba(255,255,255,.14);
+    --edge-bright:rgba(255,255,255,.28);
     --display:"Bricolage Grotesque","Inter Tight",system-ui,sans-serif;
     --mono:"Martian Mono",ui-monospace,SFMono-Regular,monospace;
     --body:"Inter Tight",system-ui,-apple-system,sans-serif;
@@ -70,9 +69,7 @@
     border:1px solid var(--edge);
     border-radius:24px;
     padding:22px;
-    -webkit-backdrop-filter:var(--blur);
-    backdrop-filter:var(--blur);
-    box-shadow:0 30px 70px -40px #000, inset 0 1px 0 rgba(255,255,255,.14);
+    box-shadow:0 30px 70px -40px #000, inset 0 1px 0 rgba(255,255,255,.06);
   }
   .stack{display:flex;flex-direction:column;gap:18px;min-width:0}
 
@@ -137,10 +134,9 @@
     font-family:var(--body);font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
     border-radius:13px;padding:14px 16px;cursor:pointer;
     border:1px solid var(--edge);background:var(--glass-lift);color:var(--bone);
-    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
     transition:background .2s ease,border-color .2s ease,transform .12s ease;
   }
-  button:hover{background:rgba(255,255,255,.18);border-color:var(--edge-bright)}
+  button:hover{background:#193C4B;border-color:var(--edge-bright)}
   button:active{transform:translateY(1px)}
   .primary{flex:1;min-width:150px;background:var(--lume);border-color:var(--lume);color:#03121A}
   .primary:hover{background:var(--lume-soft);border-color:var(--lume-soft)}
